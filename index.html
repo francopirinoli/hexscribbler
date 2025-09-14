@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hexscribbler - OSR Campaign Manager</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Sorts+Mill+Goudy&display=swap" rel="stylesheet">
+    
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-darkest: #1a1a1a;
+            --bg-dark: #2a2a2a;
+            --bg-medium: #3a3a3a;
+            --border-color: #555;
+            --text-color: #e0e0e0;
+            --text-muted: #999;
+            --accent-color: #5b8ee3;
+            --accent-hover: #7dafff;
+            --font-header: 'Sorts Mill Goudy', serif;
+            --font-body: 'Lato', sans-serif;
+        }
+        body { background-color: var(--bg-darkest); color: var(--text-color); font-family: var(--font-body); }
+        h1, h2, h3, h4, h5, h6 { font-family: var(--font-header); color: var(--text-color); }
+        header { background-color: var(--bg-dark); border-bottom: 1px solid var(--border-color); }
+        button, select { background-color: var(--bg-medium); border: 1px solid var(--border-color); color: var(--text-color); padding: 0.5rem 1rem; cursor: pointer; transition: background-color 0.2s; }
+        button:hover, select:hover { background-color: var(--accent-hover); border-color: var(--accent-hover); color: var(--bg-darkest); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        textarea, input { background-color: var(--bg-darkest); border: 1px solid var(--border-color); padding: 0.5rem; }
+        textarea:focus, input:focus { outline: none; border-color: var(--accent-color); }
+        #mapToolsSidebar, #hexInfoPanel { background-color: var(--bg-dark); border-color: var(--border-color); }
+        #mapToolsSidebar {overflow-y: auto; -ms-overflow-style: none;  /* IE and Edge */scrollbar-width: none;  /* Firefox */}
+        #mapToolsSidebar::-webkit-scrollbar {display: none;  /* Chrome, Safari, and Opera */}
+        #hexInfoPanel { border-left: 1px solid var(--border-color); z-index: 20; overflow-x: hidden; }
+        .tool-btn { background-color: var(--bg-medium); border: 1px solid transparent; }
+        .tool-btn:hover { background-color: var(--bg-darkest); border-color: var(--accent-color); }
+        .tool-btn.active-tool, .tool-btn.expanded, .tool-btn.active {
+            background-color: var(--accent-color);
+            color: var(--bg-darkest);
+            border-color: var(--accent-hover);
+        }
+        .tool-group-toggle {
+            background-color: var(--text-muted);
+            color: var(--bg-darkest);
+            font-weight: bold;}
+        .modal-content { background-color: var(--bg-dark); border: 1px solid var(--border-color); }
+        #header-title { color: var(--accent-color); }
+        .hex-info-header { color: var(--accent-color); }
+        #campaignLoreHeader { color: #b194d6; }
+        #toast-container { position: fixed; bottom: 1rem; right: 1rem; z-index: 100; display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; }
+        .toast { background-color: var(--accent-color); color: var(--bg-darkest); padding: 0.75rem 1.25rem; font-weight: bold; opacity: 1; transition: opacity 0.5s ease-out, transform 0.5s ease-out; transform: translateX(0); }
+        .toast-fade-out { opacity: 0; transform: translateX(100%); }
+        #global-tooltip { position: fixed; background-color: var(--bg-darkest); color: var(--text-color); border: 1px solid var(--border-color); padding: 0.3rem 0.6rem; font-size: 0.8rem; white-space: nowrap; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 9999; }
+        #loading-overlay { position: fixed; inset: 0; background-color: rgba(26, 26, 26, 0.85); z-index: 9999; display: flex; align-items: center; justify-content: center; font-family: var(--font-header); font-size: 1.5rem; color: var(--text-muted); }
+        #hex-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50vw; height: 75vh; background-color: var(--bg-dark); border: 1px solid var(--border-color); z-index: 50; display: flex; flex-direction: column; resize: both; overflow: hidden; min-width: 400px; min-height: 300px; }
+        #hex-modal.hidden { display: none; }
+        #hex-modal-header { width: 100%; background-color: var(--bg-darkest); padding: 0.5rem; cursor: move; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        #hex-modal-content { padding: 1rem; flex-grow: 1; display: flex; flex-direction: column; }
+        #hex-modal-textarea { flex-grow: 1; width: 100%; }
+        #hex-modal-resize-handle { position: absolute; right: 0; bottom: 0; width: 15px; height: 15px; cursor: nwse-resize; }
+        .hex-modal-control-btn { padding: 0.2rem 0.5rem; }
+        
+        #tableListContainer ul { list-style: none; padding: 0; }
+        #tableListContainer li { cursor: pointer; padding: 0.25rem 0.5rem; border-radius: 4px; }
+        #tableListContainer li:hover { background-color: var(--bg-medium); }
+        #tableListContainer li.selected { background-color: var(--accent-color); color: var(--bg-darkest); font-weight: bold; }
+        #tableListContainer .category-header { font-weight: bold; color: var(--accent-color); margin-top: 0.75rem; padding-left: 0.25rem; font-family: var(--font-header); }
+        
+        #tableViewerTextarea { background-color: var(--bg-darkest); border: 1px solid var(--border-color); color: var(--text-color); resize: none; }
+        #lastRollResultContainer { background-color: var(--bg-darkest); border: 1px solid var(--border-color); min-height: 4.5rem; }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden">
+
+    <header class="p-4 flex justify-between items-center z-10">
+        <h1 id="header-title" class="text-2xl font-bold">Hexscribbler</h1>
+        <div class="space-x-2">
+            <button id="newMapBtn" data-tooltip="Create a new blank map">New Map</button>
+            <button id="loadMapBtn" data-tooltip="Load map from browser storage">Load Local</button>
+            <button id="saveToFileBtn" data-tooltip="Save campaign to a local file">Save to File</button>
+            <button id="loadFromFileBtn" data-tooltip="Load campaign from a local file">Load from File</button>
+            <button id="compilePdfBtn" data-tooltip="Compile campaign notes to a PDF">Compile PDF</button>
+            <button id="randomTablesBtn" data-tooltip="Open the Random Table Compendium">Random Tables</button>
+            <button id="campaignLoreBtn" data-tooltip="Edit high-level campaign lore">Campaign Lore</button>
+            <button id="settingsBtn" data-tooltip="Set API Key and language">Settings</button>
+        </div>
+    </header>
+
+    <main class="flex flex-1 overflow-hidden">
+        <aside id="mapToolsSidebar" class="w-24 p-2 flex flex-col items-center space-y-2 py-4 z-10">
+            <h3>Tools</h3>
+            <button class="tool-btn w-14 h-14 flex flex-col items-center justify-center text-xs" data-tooltip="Select Hex (Q)" data-tool="select">
+                <svg class="w-6 h-6 mb-1 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 8.232l-4.243 4.242-1.414-1.414 4.243-4.243 1.414 1.414z"></path></svg>
+                <span>Select</span>
+            </button>
+            <button id="generateMapBtn" class="tool-btn w-14 h-14 flex flex-col items-center justify-center text-xs" data-tooltip="Generate Random World">
+                <svg class="w-6 h-6 mb-1 pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor"><path d="M416 32H96C42.98 32 0 74.98 0 128v256c0 53.02 42.98 96 96 96h320c53.02 0 96-42.98 96-96V128c0-53.02-42.98-96-96-96zM192 160c17.67 0 32 14.33 32 32s-14.33 32-32 32-32-14.33-32-32 14.33-32 32-32zm192 192c-17.67 0-32-14.33-32-32s14.33-32 32-32 32 14.33 32 32-14.33 32-32 32z"/></svg>
+                <span>Generate</span>
+            </button>
+            <hr class="w-full" style="border-color: var(--border-color);">
+            
+            <button id="paths-group-toggle" class="tool-btn w-14 h-14 flex flex-col items-center justify-center text-xs tool-group-toggle" data-tooltip="Toggle Path Tools">
+                <svg class="w-6 h-6 mb-1 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v-5a2 2 0 012-2h4a2 2 0 012 2v5m-6 0h6m-3-5V7m0 0l2-2m-2 2l-2-2"></path></svg>
+                <span>Paths</span>
+            </button>
+            <div id="paths-group-content" class="hidden w-full flex flex-col items-center space-y-2">
+                <button class="tool-btn w-14 h-14 flex flex-col items-center justify-center text-xs" data-tooltip="Draw River (R)" data-tool="draw-river">
+                    <svg class="w-6 h-6 mb-1 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13v-6m0-4V3m4 17l5.447-2.724A1 1 0 0019 16.382V5.618a1 1 0 00-1.447-.894L13 7m0 13v-6m0-4V3"></path></svg>
+                    <span>Draw River</span>
+                </button>
+                 <button class="tool-btn w-14 h-14 flex flex-col items-center justify-center text-xs" data-tooltip="Draw Road (T)" data-tool="draw-road">
+                    <svg class="w-6 h-6 mb-1 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m-15.357-2a8.001 8.001 0 0115.357-2m0 0H15"></path></svg>
+                    <span>Draw Road</span>
+                </button>
+                <button id="generateRiverBtn" class="tool-btn w-14 h-14 flex flex-col items-center justify-center text-xs" data-tooltip="Generate a smart river">
+                    <svg class="w-6 h-6 mb-1 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    <span>Gen River</span>
+                </button>
+                <button id="generateRoadBtn" class="tool-btn w-14 h-14 flex flex-col items-center justify-center text-xs" data-tooltip="Generate a smart road">
+                    <svg class="w-6 h-6 mb-1 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                    <span>Gen Road</span>
+                </button>
+                 <button class="tool-btn w-14 h-14 flex flex-col items-center justify-center text-xs" data-tooltip="Edit Path Name/Desc (E)" data-tool="edit-path">
+                    <svg class="w-6 h-6 mb-1 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                    <span>Edit Path</span>
+                </button>
+                <button class="tool-btn w-14 h-14 flex flex-col items-center justify-center text-xs" data-tooltip="Delete Path (D)" data-tool="delete-path">
+                    <svg class="w-6 h-6 mb-1 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    <span>Delete Path</span>
+                </button>
+                
+            </div>
+
+            <hr class="w-full" style="border-color: var(--border-color);">
+            
+            <button id="terrain-group-toggle" class="tool-btn w-14 h-14 flex flex-col items-center justify-center text-xs tool-group-toggle" data-tooltip="Toggle Terrain Tools">
+                 <svg class="w-6 h-6 mb-1 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                <span>Terrain</span>
+            </button>
+            <div id="terrain-group-content" class="hidden w-full flex flex-col items-center space-y-2">
+                <div id="terrainBrushes" class="w-full flex flex-col items-center space-y-2"></div>
+            </div>
+        
+        <!-- START: New POI Tools Group -->
+            <hr class="w-full" style="border-color: var(--border-color);">
+
+            <button id="poi-group-toggle" class="tool-btn w-14 h-14 flex flex-col items-center justify-center text-xs tool-group-toggle" data-tooltip="Toggle POI Tools">
+                 <svg class="w-6 h-6 mb-1 pointer-events-none" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"></path></svg>
+                <span>POIs</span>
+            </button>
+            <div id="poi-group-content" class="hidden w-full flex flex-col items-center space-y-2">
+                <div id="poiBrushes" class="w-full flex flex-col items-center space-y-2">
+                    <!-- POI buttons will be dynamically added here by JS -->
+                </div>
+                <button class="tool-btn w-14 h-14 flex flex-col items-center justify-center text-xs" data-tooltip="Remove POI (X)" data-tool="remove-poi">
+                    <svg class="w-6 h-6 mb-1 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 12H6"></path></svg>
+                    <span>Remove POI</span>
+                </button>
+            </div>
+            <!-- START: New Filter Tools Group -->
+            <hr class="w-full" style="border-color: var(--border-color);">
+            
+            <button id="filter-group-toggle" class="tool-btn w-14 h-14 flex flex-col items-center justify-center text-xs tool-group-toggle" data-tooltip="Toggle Visibility Filters">
+                <svg class="w-6 h-6 mb-1 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a9.97 9.97 0 01-1.563 3.029m0 0l-2.143-2.143"></path></svg>
+                <span>Filters</span>
+            </button>
+            <div id="filter-group-content" class="hidden w-full flex flex-col items-center space-y-2 px-1">
+                <button id="toggleAllPoisBtn" class="w-full text-xs py-1">Hide All POIs</button>
+                <div id="poiFilterCheckboxes" class="w-full flex flex-col items-start space-y-1 mt-2">
+                    <!-- POI filter checkboxes will be dynamically added here -->
+                </div>
+            </div>
+<!-- END: New Filter Tools Group -->
+        </aside>
+
+        <div id="mapContainer" class="flex-1 relative overflow-hidden">
+            <canvas id="hexCanvas" class="w-full h-full block"></canvas>
+        </div>
+
+        <aside id="hexInfoPanel" class="w-96 p-4 flex flex-col hidden">
+            <div class="flex justify-between items-center mb-4">
+                 <h2 class="hex-info-header text-xl font-bold">Hex <span id="hexCoords">N/A</span></h2>
+                 <div class="flex space-x-2">
+                    <button id="expandHexBtn" data-tooltip="Open in new window" class="px-2 py-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 1v4m0 0h-4m4 0l-5-5"></path></svg>
+                    </button>
+                    <button id="closeHexPanelBtn" data-tooltip="Close this panel">Close</button>
+                 </div>
+            </div>
+            <p class="mb-4 text-sm">
+                <strong>Terrain:</strong> <span id="hexTerrain">N/A</span> | 
+                <strong>POIs:</strong> <span id="hexPOIs">N/A</span> |
+                <strong>Paths:</strong> <span id="hexPaths">N/A</span>
+            </p>
+            <textarea id="hexContentTextarea" class="flex-1 w-full p-2 resize-none mb-4" placeholder="Roll tables or write your own content..."></textarea>
+            <div class="grid grid-cols-2 gap-2">
+                <button id="rollTablesBtn" data-tooltip="Generate content from random tables">Roll Tables</button>
+                <button id="weaveWithAiBtn" data-tooltip="Rewrite content with AI" disabled>Weave with AI</button>
+                <button id="editContentBtn" data-tooltip="Manually edit content">Edit</button>
+                <button id="saveContentBtn" data-tooltip="Save changes to this hex" disabled>Save</button>
+            </div>
+        </aside>
+    </main>
+
+    <!-- Modals -->
+    <div id="newMapModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="modal-content p-8 w-full max-w-md">
+            <h2 class="text-2xl font-bold mb-6">Create New World</h2>
+            <div class="mb-4">
+                <label for="mapTypeSelect" class="block text-sm font-bold mb-2">Map Type:</label>
+                <select id="mapTypeSelect" class="w-full">
+                    <option value="Continent">Continent</option>
+                    <option value="Archipelago">Archipelago</option>
+                    <option value="Pangea">Pangea</option>
+                    <option value="Inland Sea">Inland Sea</option>
+                    <option value="Peninsula">Peninsula</option>
+                    <option value="Coastline">Coastline</option>
+                    <option value="Landlocked">Landlocked</option>
+                    <option value="Volcanic Island">Volcanic Island</option>
+                    <option value="Isthmus">Isthmus</option>
+                </select>
+            </div>
+            <div class="mb-4">
+                <label for="mapElevationSlider" class="block text-sm font-bold mb-2">Elevation:</label>
+                <input type="range" id="mapElevationSlider" class="w-full" min="0" max="100" value="50">
+                <div class="flex justify-between text-xs" style="color: var(--text-muted);">
+                    <span>Flat</span>
+                    <span>Mountainous</span>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label for="mapClimateSlider" class="block text-sm font-bold mb-2">Climate:</label>
+                <input type="range" id="mapClimateSlider" class="w-full" min="0" max="100" value="50">
+                <div class="flex justify-between text-xs" style="color: var(--text-muted);">
+                    <span>Dry</span>
+                    <span>Wet</span>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label for="mapWidthInput" class="block text-sm font-bold mb-2">Width (hexes):</label>
+                <input type="number" id="mapWidthInput" class="w-full" value="30">
+            </div>
+            <div class="mb-4">
+                <label for="mapHeightInput" class="block text-sm font-bold mb-2">Height (hexes):</label>
+                <input type="number" id="mapHeightInput" class="w-full" value="20">
+            </div>
+            <div class="mb-6">
+                <label for="mapSeedInput" class="block text-sm font-bold mb-2">World Seed:</label>
+                <div class="flex items-center space-x-2">
+                    <input type="text" id="mapSeedInput" class="w-full" placeholder="Leave blank for random">
+                    <button id="randomSeedBtn" data-tooltip="Generate random seed" class="p-2" type="button">
+                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor"><path d="M416 32H96C42.98 32 0 74.98 0 128v256c0 53.02 42.98 96 96 96h320c53.02 0 96-42.98 96-96V128c0-53.02-42.98-96-96-96zM192 160c17.67 0 32 14.33 32 32s-14.33 32-32 32-32-14.33-32-32 14.33-32 32-32zm192 192c-17.67 0-32-14.33-32-32s14.33-32 32-32 32 14.33 32 32-14.33 32-32 32z"/></svg>
+                    </button>
+                </div>
+                <p class="text-xs mt-1" style="color: var(--text-muted);">Same seed always creates the same map.</p>
+            </div>
+            <div class="flex justify-end space-x-4">
+                <button id="closeNewMapModalBtn">Cancel</button>
+                <button id="createNewMapBtn">Generate World</button>
+            </div>
+        </div>
+    </div>
+    <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="modal-content p-8 w-full max-w-md">
+            <h2 class="text-2xl font-bold mb-6">Settings</h2>
+            <div class="mb-6">
+                <label for="geminiApiKey" class="block text-sm font-bold mb-2">Gemini API Key:</label>
+                <input type="password" id="geminiApiKey" class="w-full" placeholder="Paste your API key here">
+                <p class="text-xs mt-1" style="color: var(--text-muted);">Your key is stored locally.</p>
+            </div>
+            <div class="mb-6">
+                <label for="languageSelect" class="block text-sm font-bold mb-2">Generation Language:</label>
+                <select id="languageSelect" class="w-full">
+                    <option value="English">English</option>
+                    <option value="Spanish">Spanish</option>
+                    <option value="French">French</option>
+                    <option value="German">German</option>
+                    <option value="Portuguese">Portuguese</option>
+                    <option value="Italian">Italian</option>
+                </select>
+            </div>
+            <div class="flex justify-end space-x-4">
+                <button id="closeSettingsModalBtn">Cancel</button>
+                <button id="saveSettingsBtn">Save Settings</button>
+            </div>
+        </div>
+    </div>
+    <div id="campaignLoreModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="modal-content p-8 w-full max-w-2xl h-3/4 flex flex-col">
+            <h2 id="campaignLoreHeader" class="text-2xl font-bold mb-6">Campaign Lore</h2>
+            <textarea id="campaignLoreTextarea" class="flex-1 w-full p-4 resize-none mb-6" placeholder="Enter high-level campaign themes..."></textarea>
+            <div class="flex justify-end space-x-4">
+                <button id="closeCampaignLoreModalBtn">Close</button>
+                <button id="saveCampaignLoreBtn">Save Lore</button>
+            </div>
+        </div>
+    </div>
+    <div id="hex-modal" class="hidden">
+        <div id="hex-modal-header">
+            <h3 id="hex-modal-title" class="font-bold">Hex Content</h3>
+            <div class="space-x-2">
+                <button id="hex-modal-minimize" class="hex-modal-control-btn">-</button>
+                <button id="hex-modal-close" class="hex-modal-control-btn">X</button>
+            </div>
+        </div>
+        <div id="hex-modal-content">
+            <textarea id="hex-modal-textarea" class="resize-none"></textarea>
+            <div class="mt-4 border-t border-dashed" style="border-color: var(--border-color);">
+                <h4 class="text-sm mt-2" style="color: var(--text-muted);">Future Tools</h4>
+            </div>
+        </div>
+        <div id="hex-modal-resize-handle"></div>
+    </div>
+    
+    <div id="randomTableModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="modal-content p-4 w-full max-w-4xl h-5/6 flex flex-col">
+            <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                <h2 class="text-2xl font-bold">Random Table Compendium</h2>
+                <button id="closeRandomTableModalBtn">Close</button>
+            </div>
+            <div class="flex flex-1 overflow-hidden space-x-4">
+                <div class="w-1/3 flex flex-col border-r pr-4" style="border-color: var(--border-color);">
+                    <input type="text" id="tableSearchInput" placeholder="Search tables..." class="w-full mb-2 flex-shrink-0">
+                    <div class="flex space-x-1 mb-2">
+                        <button id="addNewTableBtn" data-tooltip="Add a new custom table" class="flex-1 text-sm py-1 px-2">Add New</button>
+                        <button id="editSelectedTableBtn" data-tooltip="Edit the selected custom table" class="flex-1 text-sm py-1 px-2" disabled>Edit Selected</button>
+                        <button id="deleteSelectedTableBtn" data-tooltip="Delete the selected custom table" class="flex-1 text-sm py-1 px-2" disabled>Delete Selected</button>
+                    </div>
+                    <div id="tableListContainer" class="flex-1 overflow-y-auto">
+                        <!-- Table list will be populated by JS -->
+                    </div>
+                </div>
+                <div class="w-2/3 flex flex-col">
+                    <h3 id="selectedTableName" class="text-lg font-bold mb-2 text-center" style="color: var(--text-muted);">Select a table from the list</h3>
+                    <div class="flex space-x-2 mb-2 flex-shrink-0">
+                        <button id="rollSelectedTableBtn" class="flex-1" disabled>Roll</button>
+                        <button id="copySelectedTableBtn" class="flex-1" disabled>Copy Table</button>
+                    </div>
+                    <div id="lastRollResultContainer" class="p-2 mb-2">
+                        <strong>Last Roll:</strong> <span id="lastRollResult">N/A</span>
+                    </div>
+                    <textarea id="tableViewerTextarea" readonly class="flex-1 w-full p-2"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="customTableEditorModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="modal-content p-8 w-full max-w-xl flex flex-col">
+             <h2 class="text-2xl font-bold mb-6">Custom Table Editor</h2>
+             <div class="mb-4">
+                <label for="tableCategoryInput" class="block text-sm font-bold mb-2">Category Path:</label>
+                <input type="text" id="tableCategoryInput" class="w-full" placeholder="e.g., my_tables.dungeon">
+                <p class="text-xs mt-1" style="color: var(--text-muted);">Use dots to create subcategories. Must start with 'my_tables'.</p>
+            </div>
+             <div class="mb-4">
+                <label for="tableNameInput" class="block text-sm font-bold mb-2">Table Name:</label>
+                <input type="text" id="tableNameInput" class="w-full" placeholder="e.g., features">
+            </div>
+            <div class="mb-4 flex-1 flex flex-col">
+                <label for="tableEntriesTextarea" class="block text-sm font-bold mb-2">Table Entries (one per line):</label>
+                <!-- REVISED: Added rows="6" for a taller default size -->
+                <textarea id="tableEntriesTextarea" class="w-full flex-1" placeholder="A rusty sword&#10;A pile of bones&#10;A talking skull" rows="6"></textarea>
+            </div>
+             <div class="flex justify-end space-x-4 mt-4">
+                <button id="cancelCustomTableBtn">Cancel</button>
+                <button id="saveCustomTableBtn">Save Table</button>
+            </div>
+        </div>
+    </div>
+     <!-- START: New Path Editor Modal -->
+    <div id="pathEditorModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="modal-content p-8 w-full max-w-xl flex flex-col">
+             <h2 class="text-2xl font-bold mb-6">Edit Path Details</h2>
+             <div class="mb-4">
+                <label for="pathNameInput" class="block text-sm font-bold mb-2">Path Name:</label>
+                <input type="text" id="pathNameInput" class="w-full" placeholder="e.g., The Old King's Road">
+            </div>
+            <div class="mb-4 flex-1 flex flex-col">
+                <label for="pathDescriptionTextarea" class="block text-sm font-bold mb-2">Path Description (Optional):</label>
+                <textarea id="pathDescriptionTextarea" class="w-full flex-1" placeholder="e.g., A crumbling stone road, now mostly used by merchants and pilgrims..." rows="5"></textarea>
+            </div>
+             <div class="flex justify-end space-x-4 mt-4">
+                <button id="cancelPathEditBtn">Cancel</button>
+                <button id="savePathEditBtn">Save Details</button>
+            </div>
+        </div>
+    </div>
+
+     <div id="pathDeletionModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="modal-content p-8 w-full max-w-md">
+            <h2 class="text-2xl font-bold mb-6">Select Path to Delete</h2>
+            <div id="pathDeletionList" class="space-y-2 mb-6">
+                <!-- Path buttons will be dynamically added here -->
+            </div>
+            <div class="flex justify-end">
+                <button id="cancelPathDeletionBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="toast-container"></div>
+    <div id="loading-overlay">
+        <p>Loading Campaign...</p>
+    </div>
+    <div id="global-tooltip" class="hidden"></div>
+    <input type="file" id="campaignFileInput" class="hidden" accept=".json">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="main.js" type="module" defer></script>
+</body>
+</html>
