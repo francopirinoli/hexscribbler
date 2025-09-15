@@ -3,7 +3,7 @@
 
 Hexscribbler is a comprehensive, web-based tool for Old School Renaissance (OSR) Game Masters that streamlines the creation and management of dynamic hexcrawl campaigns. It combines a powerful procedural map generator with a deep, customizable random table system and AI-powered narrative weaving to create a living campaign tool that minimizes GM prep time while maximizing emergent story opportunities.
 
-## Github Pages Link:
+## Github Pages Link: https://francopirinoli.github.io/hexscribbler/
 
 ---
 
